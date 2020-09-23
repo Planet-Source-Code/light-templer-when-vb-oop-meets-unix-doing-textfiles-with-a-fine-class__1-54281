@@ -1,0 +1,173 @@
+VERSION 1.0 CLASS
+BEGIN
+  MultiUse = -1  'True
+END
+Attribute VB_Name = "clsParseTextFile"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = True
+Attribute VB_PredeclaredId = False
+Attribute VB_Exposed = False
+Attribute VB_Ext_KEY = "SavedWithClassBuilder" ,"Yes"
+Attribute VB_Ext_KEY = "Top_Level" ,"Yes"
+
+'
+'   clsParseTextFile.cls
+'
+
+'   Created by:     LiTe
+'   Started   :     26.5.2004
+'   last edit :     26.5.2004
+
+
+Option Explicit
+
+
+
+' *******************************
+' *            EVENTS           *
+' *******************************
+Public Event HandleLine(lLineNo As Long, sLine As String)
+Public Event Error(sErrMsg As String, lLineNo As Long)
+
+
+Private Type tpMvars
+    sPathFilename       As String
+    sErrMsg             As String
+    flgIgnoreEmptyLines As Boolean
+    flgAbortParsing     As Boolean
+    lLinesTotal         As Long
+    lLinesToHandle      As Long
+End Type
+Private mvars As tpMvars
+'
+'
+'
+
+
+
+' *************************************
+' *      PUBLIC SUBS/FUNCTIONS        *
+' *************************************
+Public Function Parse(Optional sPathFilename As String = "", _
+                    Optional flgIgnoreEmptyLines As Boolean) As Boolean
+
+    ' Returns True when parsing is done without any errors
+    
+    If sPathFilename <> "" Then
+        mvars.sPathFilename = sPathFilename
+    End If
+    If IsMissing(flgIgnoreEmptyLines) = False Then
+        mvars.flgIgnoreEmptyLines = flgIgnoreEmptyLines
+    End If
+    If ParseTheFile() = True And mvars.sErrMsg = "" Then
+        Parse = True
+    End If
+    
+End Function
+
+
+
+' *************************************
+' *         PRIVATE FUNCTIONS         *
+' *************************************
+Private Function ParseTheFile() As Boolean
+
+    Dim lFhndl  As Long
+    Dim sLine   As String
+
+    On Local Error GoTo error_handler
+
+
+    lFhndl = FreeFile
+    With mvars
+        .flgAbortParsing = False
+        Open .sPathFilename For Input As #lFhndl
+        Do While EOF(lFhndl) = False And .flgAbortParsing = False
+            Line Input #lFhndl, sLine
+            .lLinesTotal = .lLinesTotal + 1
+            If sLine <> "" Or .flgIgnoreEmptyLines = False Then
+                .lLinesToHandle = .lLinesToHandle + 1
+                RaiseEvent HandleLine(.lLinesToHandle, sLine)
+            End If
+            DoEvents
+        Loop
+        Close #lFhndl
+    End With
+    ParseTheFile = True
+    
+    Exit Function
+
+
+error_handler:
+    
+    mvars.sErrMsg = "[" & Err.Description & "] in procedure 'ParseTheFile()', line no: " & mvars.lLinesTotal
+    mvars.flgAbortParsing = True
+    
+    Close #lFhndl
+    raiseErr mvars.sErrMsg
+
+End Function
+
+Private Sub raiseErr(sErr As String)
+
+    RaiseEvent Error(sErr, mvars.lLinesTotal)
+
+End Sub
+
+
+' *************************************
+' *           PROPERTIES              *
+' *************************************
+
+Public Property Get LinesToHandle() As Long
+    ' How many line were to handle (without empty ones, when flgIgnoreEmptyLines= True !)
+    
+    LinesToHandle = mvars.lLinesToHandle
+ 
+End Property
+
+Public Property Get LinesTotal() As Long
+    ' How many lines in textfile
+    
+    LinesTotal = mvars.lLinesTotal
+ 
+End Property
+
+
+Public Property Let CancelParsing(ByVal vData As Boolean)
+    
+    mvars.flgAbortParsing = vData
+ 
+End Property
+
+Public Property Get ParsingCanceled() As Boolean
+    
+    ParsingCanceled = mvars.flgAbortParsing
+ 
+End Property
+
+Public Property Let IgnoreEmptyLines(ByVal vData As Boolean)
+    
+    mvars.flgIgnoreEmptyLines = vData
+ 
+End Property
+
+Public Property Get IgnoreEmptyLines() As Boolean
+    
+    IgnoreEmptyLines = mvars.flgIgnoreEmptyLines
+ 
+End Property
+
+Public Property Let sPathFilename(ByVal vData As String)
+    
+    mvars.sPathFilename = vData
+ 
+End Property
+
+Public Property Get sPathFilename() As String
+    
+    sPathFilename = mvars.sPathFilename
+ 
+End Property
+
+' #*#
